@@ -11,14 +11,13 @@ import {
 } from "../encoderShared.js";
 
 const modulePromises = new Map<string, Promise<IBasisModule>>();
-
-const DEFAULT_WASM_URL =
-  "https://mdn.alipayobjects.com/rms/afts/file/A*r7D4SKbksYcAAAAAAAAAAAAAARQnAQ/basis_encoder.wasm";
+const DEFAULT_JS_URL = new URL("../basis/basis_encoder.js", import.meta.url).href;
+const DEFAULT_WASM_URL = new URL("../basis/basis_encoder.wasm", import.meta.url).href;
 
 class BrowserBasisEncoder {
   async init(options?: { jsUrl?: string; wasmUrl?: string }) {
     const wasmUrl = options?.wasmUrl ?? DEFAULT_WASM_URL;
-    const jsUrl = options?.jsUrl ?? "../basis/basis_encoder.js";
+    const jsUrl = options?.jsUrl ?? DEFAULT_JS_URL;
     const cacheKey = `${jsUrl}::${wasmUrl ?? ""}`;
 
     if (!modulePromises.has(cacheKey)) {

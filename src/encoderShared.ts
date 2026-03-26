@@ -5,6 +5,26 @@ const MB = 1024 * 1024;
 const MAX_ENCODE_BUFFER_SIZE = 512 * MB;
 type HDRImageType = "hdr" | "exr" | "raster";
 
+function assertIntegerInRange(name: string, value: number | undefined, min: number, max: number) {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Number.isInteger(value) || value < min || value > max) {
+    throw new Error(`${name} must be an integer between ${min} and ${max}.`);
+  }
+}
+
+function assertNumberInRange(name: string, value: number | undefined, min: number, max: number) {
+  if (value === undefined) {
+    return;
+  }
+
+  if (!Number.isFinite(value) || value < min || value > max) {
+    throw new Error(`${name} must be a number between ${min} and ${max}.`);
+  }
+}
+
 export function normalizeError(error: unknown): Error {
   if (error instanceof Error) {
     return error;
@@ -40,6 +60,27 @@ export function validateEncodeInput(
 
   if (environment === "node" && !options.isHDR && !options.imageDecoder) {
     throw new Error("imageDecoder is required in Node.js.");
+  }
+
+  assertIntegerInRange("qualityLevel", options.qualityLevel, 1, 255);
+  assertIntegerInRange("compressionLevel", options.compressionLevel, 0, 6);
+  assertIntegerInRange("uastcLDRQualityLevel", options.uastcLDRQualityLevel, 0, 4);
+  assertNumberInRange("rdoQualityLevel", options.rdoQualityLevel, 0.001, 10);
+
+  if (options.enableRDO && options.isUASTC === false) {
+    throw new Error("enableRDO is only supported with UASTC encoding.");
+  }
+
+  if (options.needSupercompression && options.isUASTC === false) {
+    throw new Error("needSupercompression is only supported with UASTC encoding.");
+  }
+
+  if (options.isNormalMap && options.isPerceptual === true) {
+    throw new Error("Normal maps cannot be encoded as perceptual textures.");
+  }
+
+  if (options.isHDR) {
+    assertIntegerInRange("hdrQualityLevel", options.hdrQualityLevel, 0, 4);
   }
 }
 

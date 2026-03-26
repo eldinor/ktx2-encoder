@@ -1,7 +1,7 @@
 {
-  "version": "0.5.1",
-  "name": "ktx2-encoder",
-  "description": "KTX2(.ktx2) encoder for browser applications",
+  "version": "0.6.0",
+  "name": "babylonpress-ktx2-encoder",
+  "description": "KTX2(.ktx2) encoder for browser and Node applications",
   "type": "module",
   "exports": {
     ".": {
@@ -19,20 +19,37 @@
       "types": "./types/gltf-transform/index.d.ts"
     }
   },
-  "repository": "github:gz65555/ktx2-encoder",
-  "author": {
-    "name": "Hu Song",
-    "email": "gz65555@gmail.com"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eldinor/ktx2-encoder.git"
   },
+  "homepage": "https://github.com/eldinor/ktx2-encoder#readme",
+  "bugs": {
+    "url": "https://github.com/eldinor/ktx2-encoder/issues"
+  },
+  "author": {
+    "name": "eldinor",
+    "email": "eldinor@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Hu Song",
+      "email": "gz65555@gmail.com",
+      "url": "https://github.com/gz65555/ktx2-encoder"
+    }
+  ],
   "license": "MIT",
   "scripts": {
     "dev": "vite",
     "watch": "tsc -p tsconfig.json --watch",
     "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
     "test": "npm run test:node",
-    "test:node": "vitest run ./test/node.test.ts",
+    "test:node": "vitest run",
+    "test:web": "vitest run --reporter=dot --browser.name=chrome ./test/web.smoke.test.ts",
+    "test:coverage": "vitest run --coverage",
     "test:gltf": "vitest run ./test/gltf-transform.node.test.ts",
-    "release": "bumpp"
+    "test:gltf:web": "vitest run --reporter=dot --browser.name=chrome ./test/gltf-transform.web.smoke.test.ts",
+    "release": "npm version patch"
   },
   "keywords": [
     "ktx",
@@ -51,13 +68,14 @@
     "@gltf-transform/core": "^4.1.1",
     "@gltf-transform/extensions": "^4.1.1",
     "@types/node": "^20.17.16",
-    "@webgpu/types": "^0.1.53",
-    "bumpp": "^9.11.1",
+    "@vitest/browser": "^2.1.8",
+    "@vitest/coverage-v8": "^2.1.8",
     "prettier": "^2.8.8",
     "sharp": "^0.33.5",
     "typescript": "~5.6.3",
     "vite": "^5.4.14",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "webdriverio": "^9.7.1"
   },
   "dependencies": {
     "ktx-parse": "^0.7.1"
