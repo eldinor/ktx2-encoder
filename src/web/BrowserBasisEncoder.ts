@@ -1,7 +1,8 @@
 import { read, write } from "ktx-parse";
-import { CubeBufferData, IBasisModule, IEncodeOptions } from "../type.js";
+import { CubeBufferData, IEncodeOptions } from "../type.js";
 import { applyInputOptions } from "../applyInputOptions.js";
 import { BasisTextureType, SourceType } from "../enum.js";
+import { loadBrowserBasisModule } from "../basis/loadBasisWeb.js";
 import {
   encodeWithGrowingBuffer,
   getHDRSourceType,
@@ -10,41 +11,9 @@ import {
   validateEncodeInput
 } from "../encoderShared.js";
 
-const modulePromises = new Map<string, Promise<IBasisModule>>();
-const DEFAULT_JS_URL = new URL("../basis/basis_encoder.js", import.meta.url).href;
-const DEFAULT_WASM_URL = new URL("../basis/basis_encoder.wasm", import.meta.url).href;
-
 class BrowserBasisEncoder {
   async init(options?: { jsUrl?: string; wasmUrl?: string }) {
-    const wasmUrl = options?.wasmUrl ?? DEFAULT_WASM_URL;
-    const jsUrl = options?.jsUrl ?? DEFAULT_JS_URL;
-    const cacheKey = `${jsUrl}::${wasmUrl ?? ""}`;
-
-    if (!modulePromises.has(cacheKey)) {
-      const promise = (async () => {
-        const [{ default: BASIS }, wasmBinary] = await Promise.all([
-          import(/* @vite-ignore */ jsUrl),
-          wasmUrl
-            ? fetch(wasmUrl).then(async (res) => {
-                if (!res.ok) {
-                  throw new Error(`Failed to fetch wasm binary from "${wasmUrl}" (${res.status}).`);
-                }
-                return res.arrayBuffer();
-              })
-            : undefined
-        ]);
-
-        const module = (await BASIS({ wasmBinary })) as IBasisModule;
-        module.initializeBasis();
-        return module;
-      })().catch((error) => {
-        modulePromises.delete(cacheKey);
-        throw error;
-      });
-
-      modulePromises.set(cacheKey, promise);
-    }
-    return modulePromises.get(cacheKey)!;
+    return loadBrowserBasisModule(options);
   }
 
   /**

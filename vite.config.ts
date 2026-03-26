@@ -1,8 +1,14 @@
 /// <reference types="vitest" />
-import { defineConfig } from "vite";
+import { webdriverio } from "@vitest/browser-webdriverio";
+import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
+    testTimeout: 15000,
+    browser: {
+      provider: webdriverio(),
+      instances: [{ browser: "chrome" }]
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

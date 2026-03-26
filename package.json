@@ -45,10 +45,10 @@
     "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
     "test": "npm run test:node",
     "test:node": "vitest run ./test/encoderShared.test.ts ./test/node.test.ts ./test/repeat.node.test.ts ./test/gltf-transform.node.test.ts",
-    "test:web": "vitest run --reporter=dot --browser.name=chrome ./test/web.smoke.test.ts",
+    "test:web": "vitest run --reporter=dot --browser.enabled --browser.name=chrome ./test/web.smoke.test.ts",
     "test:coverage": "vitest run --coverage ./test/encoderShared.test.ts ./test/node.test.ts ./test/repeat.node.test.ts ./test/gltf-transform.node.test.ts",
     "test:gltf": "vitest run ./test/gltf-transform.node.test.ts",
-    "test:gltf:web": "vitest run --reporter=dot --browser.name=chrome ./test/gltf-transform.web.smoke.test.ts",
+    "test:gltf:web": "vitest run --reporter=dot --browser.enabled --browser.name=chrome ./test/gltf-transform.web.smoke.test.ts",
     "release": "npm version patch"
   },
   "keywords": [
@@ -68,13 +68,14 @@
     "@gltf-transform/core": "^4.1.1",
     "@gltf-transform/extensions": "^4.1.1",
     "@types/node": "^20.17.16",
-    "@vitest/browser": "^2.1.9",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/browser": "^4.0.8",
+    "@vitest/browser-webdriverio": "^4.0.8",
+    "@vitest/coverage-v8": "^4.0.8",
     "prettier": "^2.8.8",
     "sharp": "^0.33.5",
     "typescript": "~5.6.3",
-    "vite": "^5.4.21",
-    "vitest": "^2.1.9",
+    "vite": "^7.1.12",
+    "vitest": "^4.0.8",
     "webdriverio": "^9.7.1"
   },
   "dependencies": {

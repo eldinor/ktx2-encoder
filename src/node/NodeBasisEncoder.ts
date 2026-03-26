@@ -1,8 +1,8 @@
 import { read, write } from "ktx-parse";
 import { SourceType } from "../enum.js";
-import { CubeBufferData, IBasisModule, IEncodeOptions } from "../type.js";
+import { CubeBufferData, IEncodeOptions } from "../type.js";
 import { applyInputOptions } from "../applyInputOptions.js";
-import BASIS from "../basis/basis_encoder.js";
+import { loadNodeBasisModule } from "../basis/loadBasisNode.js";
 import {
   encodeWithGrowingBuffer,
   getHDRSourceType,
@@ -11,22 +11,10 @@ import {
   validateEncodeInput
 } from "../encoderShared.js";
 
-let promise: Promise<IBasisModule> | null = null;
-
 class NodeBasisEncoder {
-  async init(): Promise<IBasisModule> {
-    if (!promise) {
-      promise = BASIS().then((basis: IBasisModule) => {
-        basis.initializeBasis();
-        return basis;
-      });
-    }
-    return promise as Promise<IBasisModule>;
-  }
-
   async encode(bufferOrBufferArray: Uint8Array | CubeBufferData, options: Partial<IEncodeOptions> = {}) {
     validateEncodeInput(bufferOrBufferArray, options, "node");
-    const basis = await this.init();
+    const basis = await loadNodeBasisModule();
     const encoder = new basis.BasisEncoder();
     try {
       const bufferArray = Array.isArray(bufferOrBufferArray) ? bufferOrBufferArray : [bufferOrBufferArray];

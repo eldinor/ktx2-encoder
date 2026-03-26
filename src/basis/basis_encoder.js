@@ -28,8 +28,4 @@ var Module=moduleArg;var readyPromiseResolve,readyPromiseReject;var readyPromise
 }
 );
 })();
-if (typeof exports === 'object' && typeof module === 'object')
-  module.exports = BASIS;
-else if (typeof define === 'function' && define['amd'])
-  define([], () => BASIS);
 export default BASIS;
