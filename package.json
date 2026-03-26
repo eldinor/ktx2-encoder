@@ -41,6 +41,7 @@
   "license": "MIT",
   "scripts": {
     "dev": "vite",
+    "benchmark": "vite --open /benchmark/",
     "watch": "tsc -p tsconfig.json --watch",
     "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
     "test": "npm run test:node",
@@ -67,18 +68,18 @@
   "devDependencies": {
     "@gltf-transform/core": "^4.1.1",
     "@gltf-transform/extensions": "^4.1.1",
-    "@types/node": "^20.17.16",
+    "@types/node": "^25.5.0",
     "@vitest/browser": "^4.0.8",
     "@vitest/browser-webdriverio": "^4.0.8",
     "@vitest/coverage-v8": "^4.0.8",
-    "prettier": "^2.8.8",
-    "sharp": "^0.33.5",
-    "typescript": "~5.6.3",
-    "vite": "^7.1.12",
+    "prettier": "^3.8.1",
+    "sharp": "^0.34.5",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
     "vitest": "^4.0.8",
     "webdriverio": "^9.7.1"
   },
   "dependencies": {
-    "ktx-parse": "^0.7.1"
+    "ktx-parse": "^1.1.0"
   }
 }

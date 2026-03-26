@@ -1,4 +1,5 @@
 import type { IBasisModule } from "../type.js";
+import BASIS from "./basis_encoder.js";
 
 const modulePromises = new Map<string, Promise<IBasisModule>>();
 
@@ -15,8 +16,8 @@ export async function loadBrowserBasisModule(options?: {
 
   if (!modulePromises.has(cacheKey)) {
     const modulePromise = (async () => {
-      const [{ default: BASIS }, wasmBinary] = await Promise.all([
-        import(/* @vite-ignore */ jsUrl),
+      const [basisFactory, wasmBinary] = await Promise.all([
+        jsUrl === DEFAULT_BASIS_JS_URL ? Promise.resolve(BASIS) : import(/* @vite-ignore */ jsUrl).then((module) => module.default),
         fetch(wasmUrl).then(async (response) => {
           if (!response.ok) {
             throw new Error(`Failed to fetch wasm binary from "${wasmUrl}" (${response.status}).`);
@@ -25,7 +26,7 @@ export async function loadBrowserBasisModule(options?: {
         })
       ]);
 
-      const basisModule = (await BASIS({ wasmBinary })) as IBasisModule;
+      const basisModule = (await basisFactory({ wasmBinary })) as IBasisModule;
       basisModule.initializeBasis();
       return basisModule;
     })().catch((error) => {

@@ -45,6 +45,17 @@ test("requires imageDecoder for node LDR input", async () => {
   );
 });
 
+test("rejects worker option in node", async () => {
+  const buffer = await readFile("./public/tests/DuckCM.png");
+
+  await expect(async () =>
+    encodeToKTX2(new Uint8Array(buffer), {
+      worker: true,
+      imageDecoder
+    })
+  ).rejects.toThrow("worker is only supported in the browser runtime.");
+});
+
 test("rejects invalid HDR options", async () => {
   const buffer = await readFile("./public/tests/pretoria_gardens_1k.hdr");
 

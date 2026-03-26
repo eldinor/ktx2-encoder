@@ -62,6 +62,10 @@ export function validateEncodeInput(
     throw new Error("imageDecoder is required in Node.js.");
   }
 
+  if (environment === "node" && options.worker) {
+    throw new Error("worker is only supported in the browser runtime.");
+  }
+
   assertIntegerInRange("qualityLevel", options.qualityLevel, 1, 255);
   assertIntegerInRange("compressionLevel", options.compressionLevel, 0, 6);
   assertIntegerInRange("uastcLDRQualityLevel", options.uastcLDRQualityLevel, 0, 4);
