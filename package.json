@@ -3,7 +3,6 @@
   "name": "ktx2-encoder",
   "description": "KTX2(.ktx2) encoder for browser applications",
   "type": "module",
-  "packageManager": "pnpm@8.15.9",
   "exports": {
     ".": {
       "node": {
@@ -27,17 +26,13 @@
   },
   "license": "MIT",
   "scripts": {
-    "docs": "typedoc ./src/web/index.ts --plugin typedoc-plugin-markdown --out ./docs",
+    "dev": "vite",
     "watch": "tsc -p tsconfig.json --watch",
-    "build": "tsc -p tsconfig.json && cp -R src/basis dist",
-    "test": "npm run test:node && npm run test:web",
+    "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
+    "test": "npm run test:node",
     "test:node": "vitest run ./test/node.test.ts",
-    "test:web": "vitest run --browser.name=chrome ./test/web.test.ts",
-    "test:gltf": "vitest run ./test/gltf-transform.node.test.ts && vitest run --browser.name=chrome ./test/gltf-transform.web.test.ts",
-    "release": "bumpp",
-    "docs:dev": "vitepress dev website",
-    "docs:build": "cp -r src/basis website/public && vitepress build website",
-    "docs:preview": "vitepress preview website"
+    "test:gltf": "vitest run ./test/gltf-transform.node.test.ts",
+    "release": "bumpp"
   },
   "keywords": [
     "ktx",
@@ -53,30 +48,16 @@
     "dist"
   ],
   "devDependencies": {
-    "@css-render/vue3-ssr": "^0.15.14",
-    "@galacean/engine": "^1.4.5",
     "@gltf-transform/core": "^4.1.1",
     "@gltf-transform/extensions": "^4.1.1",
     "@types/node": "^20.17.16",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@types/three": "^0.172.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "@vitest/browser": "^2.1.8",
     "@webgpu/types": "^0.1.53",
     "bumpp": "^9.11.1",
-    "naive-ui": "^2.41.0",
     "prettier": "^2.8.8",
     "sharp": "^0.33.5",
-    "three": "^0.172.0",
-    "typedoc": "^0.27.6",
-    "typedoc-plugin-markdown": "^4.4.1",
     "typescript": "~5.6.3",
     "vite": "^5.4.14",
-    "vitepress": "^1.6.3",
-    "vitest": "^2.1.8",
-    "vue": "^3.5.13",
-    "webdriverio": "^9.7.1"
+    "vitest": "^2.1.8"
   },
   "dependencies": {
     "ktx-parse": "^0.7.1"

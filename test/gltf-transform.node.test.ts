@@ -63,4 +63,34 @@ describe("ktx2 transform node", () => {
     expect(texture1.getMimeType()).toBe("image/ktx2");
     expect(texture2.getMimeType()).toBe("image/png");
   });
+
+  test("filters textures by material slots", async () => {
+    const document = new Document();
+    const imageBuffer = await readFile("./public/tests/DuckCM.png");
+
+    const baseColorTexture = document.createTexture("baseColor")
+      .setImage(imageBuffer)
+      .setMimeType("image/png")
+      .setURI("baseColor.png");
+
+    const normalTexture = document.createTexture("normal")
+      .setImage(imageBuffer)
+      .setMimeType("image/png")
+      .setURI("normal.png");
+
+    document.createMaterial("material")
+      .setBaseColorTexture(baseColorTexture)
+      .setNormalTexture(normalTexture);
+
+    await document.transform(
+      ktx2({
+        slots: /^baseColorTexture$/,
+        isUASTC: true,
+        imageDecoder
+      })
+    );
+
+    expect(baseColorTexture.getMimeType()).toBe("image/ktx2");
+    expect(normalTexture.getMimeType()).toBe("image/png");
+  });
 }); 

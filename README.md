@@ -1,63 +1,75 @@
 # ktx2-encoder
 
-[![Latest NPM release](https://img.shields.io/npm/v/ktx2-encoder.svg)](https://www.npmjs.com/package/ktx2-encoder)
-[![License](https://img.shields.io/badge/license-MIT-007ec6.svg)](https://github.com/gz65555/ktx2-encoder)
+Lightweight JavaScript utilities for converting images to KTX2 (`.ktx2`) using Basis Universal.
 
-A lightweight JavaScript library for converting images to KTX2 (.ktx2) format. Powered by [BinomialLLC/basis_universal](https://github.com/BinomialLLC/basis_universal).
+## Install
 
-## Features
-
-- Convert images to KTX2 format
-- Support for both 2D images and cubemaps
-- Integration with gltf-transform
-- Support both Browser and Node.js
-
-## Quick Start
-
-Install:
-
-```shell
-npm install --save ktx2-encoder
+```sh
+npm install ktx2-encoder
 ```
 
-Import: 
+## Usage
 
-```javascript
-import { encodeToKTX2, encodeKTX2Cube } from 'ktx2-encoder';
+### Browser
+
+```ts
+import { encodeToKTX2 } from "ktx2-encoder";
+
+const png = new Uint8Array(await fetch("/texture.png").then((res) => res.arrayBuffer()));
+
+const ktx2 = await encodeToKTX2(png, {
+  isUASTC: true,
+  generateMipmap: true,
+  wasmUrl: "/basis_encoder.wasm"
+});
 ```
 
-Usage:
+### Node.js
 
-```javascript
-// encode a 2D image
-encodeToKTX2(data /** ArrayBuffer of png */, options);
-// encode a cube map
-encodeKTX2Cube([data, ...] /** ArrayBuffer of png */, options);
+```ts
+import sharp from "sharp";
+import { encodeToKTX2 } from "ktx2-encoder";
+
+async function imageDecoder(buffer: Uint8Array) {
+  const image = sharp(buffer);
+  const metadata = await image.metadata();
+  const rawBuffer = await image.ensureAlpha().raw().toBuffer();
+
+  return {
+    width: metadata.width!,
+    height: metadata.height!,
+    data: new Uint8Array(rawBuffer)
+  };
+}
+
+const png = new Uint8Array(await fs.promises.readFile("./texture.png"));
+
+const ktx2 = await encodeToKTX2(png, {
+  isUASTC: true,
+  generateMipmap: true,
+  imageDecoder
+});
 ```
 
-See [options](./docs/interfaces/IEncodeOptions.md) API documentation for more details.
+### glTF-Transform
 
-## For gltf-transform
-
-For the users of [gltf-transform](https://gltf-transform.dev/), you can use the provided function `ktx`. For example:
-
-```typescript
+```ts
 import { ktx2 } from "ktx2-encoder/gltf-transform";
 
 await document.transform(
   ktx2({
     isUASTC: true,
-    enableDebug: false,
     generateMipmap: true,
     wasmUrl: "/basis_encoder.wasm"
   })
 );
-
 ```
 
-> **Note:** It's recommended to host the `basis_encoder.wasm` file on your own server.
+## Development
 
-## Tool
-
-Open the page of [ktx2 encoder tool](https://husong.me/ktx2-encoder/tools), you can use it to encode your image to ktx2.
-
+```sh
+npm run build
+npm test
+npm run test:gltf
+npm run dev
+```

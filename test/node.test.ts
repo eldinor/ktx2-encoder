@@ -36,6 +36,26 @@ test("uastc", { timeout: Infinity }, async () => {
   expect(testArray).toEqual(resultArray);
 });
 
+test("requires imageDecoder for node LDR input", async () => {
+  const buffer = await readFile("./public/tests/DuckCM.png");
+
+  await expect(async () => encodeToKTX2(new Uint8Array(buffer), {})).rejects.toThrow(
+    "imageDecoder is required in Node.js."
+  );
+});
+
+test("rejects invalid HDR options", async () => {
+  const buffer = await readFile("./public/tests/pretoria_gardens_1k.hdr");
+
+  await expect(async () =>
+    encodeToKTX2(new Uint8Array(buffer), {
+      isHDR: true,
+      isUASTC: false,
+      imageDecoder
+    })
+  ).rejects.toThrow("HDR encoding requires UASTC output.");
+});
+
 test("etc1s", { timeout: Infinity }, async () => {
   const buffer = await readFile("./public/tests/DuckCM.png");
   const result = await encodeToKTX2(new Uint8Array(buffer), {

@@ -1,36 +1,51 @@
 import { read, write } from "ktx-parse";
 import { CubeBufferData, IBasisModule, IEncodeOptions } from "../type.js";
 import { applyInputOptions } from "../applyInputOptions.js";
-import { BasisTextureType, HDRSourceType, SourceType } from "../enum.js";
+import { BasisTextureType, SourceType } from "../enum.js";
+import {
+  encodeWithGrowingBuffer,
+  getHDRSourceType,
+  getInitialEncodeBufferSize,
+  normalizeError,
+  validateEncodeInput
+} from "../encoderShared.js";
 
-let promise: Promise<IBasisModule> | null = null;
+const modulePromises = new Map<string, Promise<IBasisModule>>();
 
 const DEFAULT_WASM_URL =
   "https://mdn.alipayobjects.com/rms/afts/file/A*r7D4SKbksYcAAAAAAAAAAAAAARQnAQ/basis_encoder.wasm";
 
 class BrowserBasisEncoder {
   async init(options?: { jsUrl?: string; wasmUrl?: string }) {
-    if (!promise) {
-      function _init(): Promise<IBasisModule> {
-        const wasmUrl = options?.wasmUrl ?? DEFAULT_WASM_URL;
-        const jsUrl = options?.jsUrl ?? "../basis/basis_encoder.js";
-        return new Promise((resolve, reject) => {
-          Promise.all([
-            import(/* @vite-ignore */ jsUrl),
-            wasmUrl ? fetch(wasmUrl).then((res) => res.arrayBuffer()) : undefined
-          ])
-            .then(([{ default: BASIS }, wasmBinary]) => {
-              return BASIS({ wasmBinary }).then((Module: IBasisModule) => {
-                Module.initializeBasis();
-                resolve(Module);
-              });
-            })
-            .catch(reject);
-        });
-      }
-      promise = _init();
+    const wasmUrl = options?.wasmUrl ?? DEFAULT_WASM_URL;
+    const jsUrl = options?.jsUrl ?? "../basis/basis_encoder.js";
+    const cacheKey = `${jsUrl}::${wasmUrl ?? ""}`;
+
+    if (!modulePromises.has(cacheKey)) {
+      const promise = (async () => {
+        const [{ default: BASIS }, wasmBinary] = await Promise.all([
+          import(/* @vite-ignore */ jsUrl),
+          wasmUrl
+            ? fetch(wasmUrl).then(async (res) => {
+                if (!res.ok) {
+                  throw new Error(`Failed to fetch wasm binary from "${wasmUrl}" (${res.status}).`);
+                }
+                return res.arrayBuffer();
+              })
+            : undefined
+        ]);
+
+        const module = (await BASIS({ wasmBinary })) as IBasisModule;
+        module.initializeBasis();
+        return module;
+      })().catch((error) => {
+        modulePromises.delete(cacheKey);
+        throw error;
+      });
+
+      modulePromises.set(cacheKey, promise);
     }
-    return promise;
+    return modulePromises.get(cacheKey)!;
   }
 
   /**
@@ -50,53 +65,52 @@ class BrowserBasisEncoder {
     bufferOrBufferArray: Uint8Array | CubeBufferData,
     options: Partial<IEncodeOptions> = {}
   ): Promise<Uint8Array> {
+    validateEncodeInput(bufferOrBufferArray, options, "browser");
     const basisModule = await this.init(options);
     const encoder = new basisModule.BasisEncoder();
-    applyInputOptions(options, encoder);
-    const isCube = Array.isArray(bufferOrBufferArray) && bufferOrBufferArray.length === 6;
-    encoder.setTexType(
-      isCube ? BasisTextureType.cBASISTexTypeCubemapArray : BasisTextureType.cBASISTexType2D
-    );
+    try {
+      applyInputOptions(options, encoder);
+      const isCube = Array.isArray(bufferOrBufferArray) && bufferOrBufferArray.length === 6;
+      encoder.setTexType(
+        isCube ? BasisTextureType.cBASISTexTypeCubemapArray : BasisTextureType.cBASISTexType2D
+      );
 
-    const bufferArray = Array.isArray(bufferOrBufferArray) ? bufferOrBufferArray : [bufferOrBufferArray];
+      const bufferArray = Array.isArray(bufferOrBufferArray) ? bufferOrBufferArray : [bufferOrBufferArray];
 
-    for (let i = 0; i < bufferArray.length; i++) {
-      const buffer = bufferArray[i];
-      if (options.isHDR) {
-        encoder.setSliceSourceImageHDR(
-          i,
-          buffer,
-          0,
-          0,
-          options.imageType === "hdr" ? HDRSourceType.HDR : HDRSourceType.EXR,
-          true
-        );
-      } else {
-        const imageData = await options.imageDecoder!(buffer);
-        encoder.setSliceSourceImage(
-          i,
-          new Uint8Array(imageData.data),
-          imageData.width,
-          imageData.height,
-          SourceType.RAW
-        );
+      for (let i = 0; i < bufferArray.length; i++) {
+        const buffer = bufferArray[i];
+        if (options.isHDR) {
+          encoder.setSliceSourceImageHDR(i, buffer, 0, 0, getHDRSourceType(options), true);
+        } else {
+          const imageData = await options.imageDecoder!(buffer);
+          encoder.setSliceSourceImage(
+            i,
+            new Uint8Array(imageData.data),
+            imageData.width,
+            imageData.height,
+            SourceType.RAW
+          );
+        }
       }
-    }
 
-    const ktx2FileData = new Uint8Array(1024 * 1024 * (options.isHDR ? 24 : 10));
-    const byteLength = encoder.encode(ktx2FileData);
-    if (byteLength === 0) {
-      throw new Error("Encode failed");
-    }
-    let actualKTX2FileData = new Uint8Array(ktx2FileData.buffer, 0, byteLength);
-    if (options.kvData) {
-      const container = read(ktx2FileData);
-      for (let k in options.kvData) {
-        container.keyValue[k] = options.kvData[k];
+      let actualKTX2FileData = encodeWithGrowingBuffer(
+        encoder,
+        getInitialEncodeBufferSize(bufferOrBufferArray, options),
+        "BrowserBasisEncoder:"
+      );
+      if (options.kvData) {
+        const container = read(actualKTX2FileData);
+        for (const key in options.kvData) {
+          container.keyValue[key] = options.kvData[key];
+        }
+        actualKTX2FileData = write(container, { keepWriter: true });
       }
-      actualKTX2FileData = write(container, { keepWriter: true });
+      return actualKTX2FileData;
+    } catch (error) {
+      throw normalizeError(error);
+    } finally {
+      encoder.delete();
     }
-    return actualKTX2FileData;
   }
 }
 
