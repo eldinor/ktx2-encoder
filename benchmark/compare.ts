@@ -1,8 +1,9 @@
-import { createKTX2Worker, createKTX2WorkerPool, encodeToKTX2, type IEncodeOptions } from "../src/web/index.js";
+import { createKTX2WorkerPool, encodeToKTX2 as encodeFork, type IEncodeOptions } from "../src/web/index.js";
+import { encodeToKTX2 as encodeOriginal } from "ktx2-encoder";
 
 type Mode = "uastc" | "etc1s";
 
-interface BenchmarkConfig {
+interface CompareConfig {
   imagePath: string;
   runs: number;
   mode: Mode;
@@ -11,7 +12,7 @@ interface BenchmarkConfig {
   batchSize: number;
 }
 
-interface BenchmarkResult {
+interface CompareResult {
   samples: number[];
   averageMs: number;
   minMs: number;
@@ -20,56 +21,54 @@ interface BenchmarkResult {
   perItemMs?: number;
 }
 
-const form = document.querySelector<HTMLFormElement>("#benchmark-form");
+const ORIGINAL_JS_URL = new URL("../node_modules/ktx2-encoder/dist/basis/basis_encoder.js", import.meta.url).href;
+const ORIGINAL_WASM_URL = new URL("../node_modules/ktx2-encoder/dist/basis/basis_encoder.wasm", import.meta.url).href;
+
+const form = document.querySelector<HTMLFormElement>("#compare-form");
 const statusEl = document.querySelector<HTMLParagraphElement>("#status");
-const runButton = document.querySelector<HTMLButtonElement>("#run-benchmark");
+const runButton = document.querySelector<HTMLButtonElement>("#run-compare");
 const clearButton = document.querySelector<HTMLButtonElement>("#clear-results");
+const summaryEl = document.querySelector<HTMLParagraphElement>("#summary-text");
 
 const resultFields = {
-  direct: {
-    average: document.querySelector<HTMLElement>("#direct-average"),
-    min: document.querySelector<HTMLElement>("#direct-min"),
-    max: document.querySelector<HTMLElement>("#direct-max"),
-    size: document.querySelector<HTMLElement>("#direct-size"),
-    samples: document.querySelector<HTMLOListElement>("#direct-samples")
+  original: {
+    average: document.querySelector<HTMLElement>("#original-average"),
+    min: document.querySelector<HTMLElement>("#original-min"),
+    max: document.querySelector<HTMLElement>("#original-max"),
+    size: document.querySelector<HTMLElement>("#original-size"),
+    samples: document.querySelector<HTMLOListElement>("#original-samples")
   },
-  worker: {
-    average: document.querySelector<HTMLElement>("#worker-average"),
-    min: document.querySelector<HTMLElement>("#worker-min"),
-    max: document.querySelector<HTMLElement>("#worker-max"),
-    size: document.querySelector<HTMLElement>("#worker-size"),
-    samples: document.querySelector<HTMLOListElement>("#worker-samples")
+  fork: {
+    average: document.querySelector<HTMLElement>("#fork-average"),
+    min: document.querySelector<HTMLElement>("#fork-min"),
+    max: document.querySelector<HTMLElement>("#fork-max"),
+    size: document.querySelector<HTMLElement>("#fork-size"),
+    samples: document.querySelector<HTMLOListElement>("#fork-samples")
   },
   pool: {
     average: document.querySelector<HTMLElement>("#pool-average"),
     perItem: document.querySelector<HTMLElement>("#pool-per-item"),
+    versusOriginal: document.querySelector<HTMLElement>("#pool-vs-original"),
     min: document.querySelector<HTMLElement>("#pool-min"),
     max: document.querySelector<HTMLElement>("#pool-max"),
-    size: document.querySelector<HTMLElement>("#pool-size"),
+    size: document.querySelector<HTMLElement>("#pool-size-result"),
     samples: document.querySelector<HTMLOListElement>("#pool-samples")
   }
 };
 
-const workerClient = createKTX2Worker();
-
 function requireElement<T extends Element>(element: T | null, name: string): T {
   if (!element) {
-    throw new Error(`Missing benchmark element: ${name}.`);
+    throw new Error(`Missing compare element: ${name}.`);
   }
+
   return element;
 }
 
-function getConfig(): BenchmarkConfig {
-  const imagePath = requireElement(
-    document.querySelector<HTMLSelectElement>("#image-path"),
-    "image-path"
-  ).value;
+function getConfig(): CompareConfig {
+  const imagePath = requireElement(document.querySelector<HTMLSelectElement>("#image-path"), "image-path").value;
   const runs = Number.parseInt(requireElement(document.querySelector<HTMLInputElement>("#runs"), "runs").value, 10);
   const mode = requireElement(document.querySelector<HTMLSelectElement>("#mode"), "mode").value as Mode;
-  const generateMipmap = requireElement(
-    document.querySelector<HTMLInputElement>("#mipmap"),
-    "mipmap"
-  ).checked;
+  const generateMipmap = requireElement(document.querySelector<HTMLInputElement>("#mipmap"), "mipmap").checked;
   const poolSize = Number.parseInt(
     requireElement(document.querySelector<HTMLInputElement>("#pool-size"), "pool-size").value,
     10
@@ -96,7 +95,7 @@ function setStatus(message: string, isError = false) {
 }
 
 function setRunning(isRunning: boolean) {
-  requireElement(runButton, "run-benchmark").disabled = isRunning;
+  requireElement(runButton, "run-compare").disabled = isRunning;
 }
 
 function formatMs(value: number) {
@@ -115,11 +114,18 @@ function formatBytes(bytes: number) {
   return `${bytes} B`;
 }
 
-function setPlaceholder(which: "direct" | "worker" | "pool") {
+function formatPercent(value: number) {
+  return `${value.toFixed(1)}%`;
+}
+
+function setPlaceholder(which: "original" | "fork" | "pool") {
   const target = resultFields[which];
   requireElement(target.average, `${which}-average`).textContent = "-";
   if ("perItem" in target && target.perItem) {
     requireElement(target.perItem, `${which}-per-item`).textContent = "-";
+  }
+  if ("versusOriginal" in target && target.versusOriginal) {
+    requireElement(target.versusOriginal, `${which}-vs-original`).textContent = "-";
   }
   requireElement(target.min, `${which}-min`).textContent = "-";
   requireElement(target.max, `${which}-max`).textContent = "-";
@@ -127,13 +133,37 @@ function setPlaceholder(which: "direct" | "worker" | "pool") {
   requireElement(target.samples, `${which}-samples`).innerHTML = "";
 }
 
-function renderResult(which: "direct" | "worker" | "pool", result: BenchmarkResult) {
+function renderResult(
+  which: "original" | "fork" | "pool",
+  result: CompareResult,
+  context?: { originalPerItemMs?: number }
+) {
   const target = resultFields[which];
   requireElement(target.average, `${which}-average`).textContent = formatMs(result.averageMs);
   if ("perItem" in target && target.perItem) {
     requireElement(target.perItem, `${which}-per-item`).textContent = result.perItemMs
       ? formatMs(result.perItemMs)
       : "-";
+  }
+  if ("versusOriginal" in target && target.versusOriginal) {
+    const versusOriginal = requireElement(target.versusOriginal, `${which}-vs-original`);
+    versusOriginal.classList.remove("metric-win", "metric-loss");
+    if (result.perItemMs && context?.originalPerItemMs) {
+      const deltaMs = context.originalPerItemMs - result.perItemMs;
+      const ratio = (deltaMs / context.originalPerItemMs) * 100;
+      const text =
+        deltaMs === 0
+          ? "0.0%"
+          : `${deltaMs > 0 ? "+" : "-"}${formatMs(Math.abs(deltaMs))} / ${formatPercent(Math.abs(ratio))}`;
+      versusOriginal.textContent = text;
+      if (deltaMs > 0) {
+        versusOriginal.classList.add("metric-win");
+      } else if (deltaMs < 0) {
+        versusOriginal.classList.add("metric-loss");
+      }
+    } else {
+      versusOriginal.textContent = "-";
+    }
   }
   requireElement(target.min, `${which}-min`).textContent = formatMs(result.minMs);
   requireElement(target.max, `${which}-max`).textContent = formatMs(result.maxMs);
@@ -148,7 +178,7 @@ function renderResult(which: "direct" | "worker" | "pool", result: BenchmarkResu
   }
 }
 
-function buildOptions(config: BenchmarkConfig): IEncodeOptions {
+function buildForkOptions(config: CompareConfig): IEncodeOptions {
   return {
     isUASTC: config.mode === "uastc",
     qualityLevel: 230,
@@ -157,21 +187,32 @@ function buildOptions(config: BenchmarkConfig): IEncodeOptions {
   };
 }
 
+function buildOriginalOptions(config: CompareConfig) {
+  return {
+    isUASTC: config.mode === "uastc",
+    qualityLevel: 230,
+    enableDebug: false,
+    generateMipmap: config.generateMipmap,
+    jsUrl: ORIGINAL_JS_URL,
+    wasmUrl: ORIGINAL_WASM_URL
+  };
+}
+
 async function loadImageBuffer(path: string): Promise<Uint8Array> {
   const response = await fetch(path);
   if (!response.ok) {
-    throw new Error(`Failed to fetch benchmark image: ${path} (${response.status}).`);
+    throw new Error(`Failed to fetch comparison image: ${path} (${response.status}).`);
   }
 
   return new Uint8Array(await response.arrayBuffer());
 }
 
-async function benchmarkMode(
+async function benchmarkPackage(
   label: string,
   runs: number,
   input: Uint8Array,
   createTask: (buffer: Uint8Array) => Promise<Uint8Array>
-): Promise<BenchmarkResult> {
+): Promise<CompareResult> {
   const samples: number[] = [];
   let outputBytes = 0;
 
@@ -195,13 +236,13 @@ async function benchmarkMode(
   };
 }
 
-async function benchmarkPool(
+async function benchmarkForkPool(
   runs: number,
   batchSize: number,
   input: Uint8Array,
   options: IEncodeOptions,
   poolSize: number
-): Promise<BenchmarkResult> {
+): Promise<CompareResult> {
   const pool = createKTX2WorkerPool({ size: poolSize });
 
   try {
@@ -209,7 +250,7 @@ async function benchmarkPool(
     let outputBytes = 0;
 
     for (let index = 0; index < runs; index++) {
-      setStatus(`Worker pool: batch ${index + 1} of ${runs}...`);
+      setStatus(`Fork pool: batch ${index + 1} of ${runs}...`);
       const jobs = Array.from({ length: batchSize }, () => ({
         imageBuffer: input.slice(),
         options: { ...options }
@@ -236,59 +277,65 @@ async function benchmarkPool(
   }
 }
 
-async function runBenchmark() {
+async function runComparison() {
   const config = getConfig();
   setRunning(true);
   setStatus("Loading image...");
 
   try {
     const input = await loadImageBuffer(config.imagePath);
-    const baseOptions = buildOptions(config);
+    const originalOptions = buildOriginalOptions(config);
+    const forkOptions = buildForkOptions(config);
 
-    const direct = await benchmarkMode("Main thread", config.runs, input, (buffer) =>
-      encodeToKTX2(buffer, { ...baseOptions })
+    const original = await benchmarkPackage("Original package", config.runs, input, (buffer) =>
+      encodeOriginal(buffer, { ...originalOptions })
     );
-    renderResult("direct", direct);
+    renderResult("original", original);
 
-    const worker = await benchmarkMode("Worker", config.runs, input, (buffer) =>
-      encodeToKTX2(buffer, { ...baseOptions, worker: workerClient })
+    const fork = await benchmarkPackage("This fork", config.runs, input, (buffer) =>
+      encodeFork(buffer, { ...forkOptions })
     );
-    renderResult("worker", worker);
+    renderResult("fork", fork);
 
-    const pool = await benchmarkPool(config.runs, config.batchSize, input, baseOptions, config.poolSize);
-    renderResult("pool", pool);
+    const pool = await benchmarkForkPool(config.runs, config.batchSize, input, forkOptions, config.poolSize);
+    renderResult("pool", pool, { originalPerItemMs: original.averageMs });
 
-    setStatus(
-      `Done. Direct avg ${formatMs(direct.averageMs)}, worker avg ${formatMs(worker.averageMs)}, pool avg ${formatMs(
-        pool.averageMs
-      )} for batches of ${config.batchSize} with pool size ${config.poolSize}. Real pool result: ${formatMs(
-        pool.perItemMs ?? 0
-      )} per texture.`
-    );
+    const diff = fork.averageMs - original.averageMs;
+    const relation = diff === 0 ? "matched" : diff < 0 ? "was faster than" : "was slower than";
+    const poolGainMs = original.averageMs - (pool.perItemMs ?? original.averageMs);
+    const poolGainPercent = (poolGainMs / original.averageMs) * 100;
+    requireElement(summaryEl, "summary-text").textContent =
+      `Done. This fork ${relation} the original package by ${formatMs(
+        Math.abs(diff)
+      )} on average. Fork pool average is ${formatMs(pool.averageMs)} for batches of ${config.batchSize} with pool size ${
+        config.poolSize
+      }, which is ${formatMs(pool.perItemMs ?? 0)} per texture, ${poolGainMs >= 0 ? "faster" : "slower"} than the original by ${formatMs(
+        Math.abs(poolGainMs)
+      )} per texture (${formatPercent(Math.abs(poolGainPercent))}).`;
+    setStatus("Comparison complete.");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     setStatus(message, true);
+    requireElement(summaryEl, "summary-text").textContent = "Comparison failed.";
   } finally {
     setRunning(false);
   }
 }
 
-requireElement(form, "benchmark-form").addEventListener("submit", (event) => {
+requireElement(form, "compare-form").addEventListener("submit", (event) => {
   event.preventDefault();
-  void runBenchmark();
+  void runComparison();
 });
 
 requireElement(clearButton, "clear-results").addEventListener("click", () => {
-  setPlaceholder("direct");
-  setPlaceholder("worker");
+  setPlaceholder("original");
+  setPlaceholder("fork");
   setPlaceholder("pool");
+  requireElement(summaryEl, "summary-text").textContent =
+    "The comparison uses the same browser image, options, and local Basis assets for both implementations.";
   setStatus("Cleared.");
 });
 
-window.addEventListener("beforeunload", () => {
-  workerClient.terminate();
-});
-
-setPlaceholder("direct");
-setPlaceholder("worker");
+setPlaceholder("original");
+setPlaceholder("fork");
 setPlaceholder("pool");

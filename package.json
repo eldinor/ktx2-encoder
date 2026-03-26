@@ -42,6 +42,7 @@
   "scripts": {
     "dev": "vite",
     "benchmark": "vite --open /benchmark/",
+    "benchmark:compare": "vite --open /benchmark/compare.html",
     "watch": "tsc -p tsconfig.json --watch",
     "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
     "test": "npm run test:node",
@@ -72,6 +73,7 @@
     "@vitest/browser": "^4.0.8",
     "@vitest/browser-webdriverio": "^4.0.8",
     "@vitest/coverage-v8": "^4.0.8",
+    "ktx2-encoder": "^0.5.1",
     "prettier": "^3.8.1",
     "sharp": "^0.34.5",
     "typescript": "^6.0.2",
