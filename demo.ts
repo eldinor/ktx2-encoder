@@ -150,6 +150,10 @@ async function loadSample() {
 }
 
 async function handleFileSelection(file: File) {
+  if (file.type === "image/webp" || file.name.toLowerCase().endsWith(".webp")) {
+    throw new Error("WebP is not supported in this demo yet. Please use PNG or JPEG.");
+  }
+
   const buffer = new Uint8Array(await file.arrayBuffer());
   setSource(buffer, file.name);
 }

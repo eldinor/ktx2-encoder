@@ -1,4 +1,5 @@
 import { expect, test } from "vitest";
+import { read } from "ktx-parse";
 import { createKTX2Worker, createKTX2WorkerPool, encodeToKTX2 } from "../src/web";
 import { decodeImageBitmap } from "../src/web/decodeImageData";
 
@@ -131,6 +132,48 @@ test("browser image decoder handles uploaded non-power-of-two images", async () 
 
   const lastPixelIndex = (decoded.width * decoded.height - 1) * 4;
   expect(Array.from(decoded.data.slice(lastPixelIndex, lastPixelIndex + 4))).toEqual([52, 199, 89, 255]);
+});
+
+test("browser encodeToKTX2 supports WebP input", async () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = 4;
+  const context = canvas.getContext("2d");
+  expect(context).toBeTruthy();
+
+  context!.fillStyle = "#1f5aa6";
+  context!.fillRect(0, 0, 4, 4);
+  context!.fillStyle = "#f4b400";
+  context!.fillRect(1, 1, 2, 2);
+
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((value) => {
+      if (value) {
+        resolve(value);
+        return;
+      }
+
+      reject(new Error("Failed to create WebP test blob."));
+    }, "image/webp", 1);
+  });
+
+  const webpBytes = new Uint8Array(await blob.arrayBuffer());
+  const decoded = await decodeImageBitmap(webpBytes);
+  expect(decoded.width).toBe(4);
+  expect(decoded.height).toBe(4);
+  expect(Array.from(decoded.data.slice(0, 4))).not.toEqual([0, 0, 0, 255]);
+
+  const result = await encodeToKTX2(webpBytes, {
+    isUASTC: true,
+    enableDebug: false,
+    qualityLevel: 230,
+    generateMipmap: true
+  });
+
+  const container = read(result);
+  expect(result.byteLength).toBeGreaterThan(0);
+  expect(container.pixelWidth).toBe(4);
+  expect(container.pixelHeight).toBe(4);
 });
 
 test("browser worker encode supports AbortSignal cancellation", async () => {
