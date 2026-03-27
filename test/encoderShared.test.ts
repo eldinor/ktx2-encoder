@@ -47,6 +47,16 @@ test("validateEncodeInput accepts valid browser and node inputs", () => {
   expect(() =>
     validateEncodeInput(new Uint8Array([1, 2, 3]), { imageDecoder: async () => ({ width: 1, height: 1, data: new Uint8Array(4) }) }, "node")
   ).not.toThrow();
+
+  expect(() =>
+    validateEncodeInput({ width: 1, height: 1, data: new Uint8Array(4) }, { isUASTC: true }, "node")
+  ).not.toThrow();
+});
+
+test("validateEncodeInput rejects invalid raster input", () => {
+  expect(() =>
+    validateEncodeInput({ width: 1, height: 1, data: new Uint8Array(3) }, { isUASTC: true }, "browser")
+  ).toThrow("Raster input data length must equal width * height * 4 bytes.");
 });
 
 test("encodeWithGrowingBuffer retries until a buffer is large enough", () => {

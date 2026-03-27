@@ -1,4 +1,4 @@
-import type { CubeBufferData, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
+import type { EncodeInput, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
 import { createKTX2Worker, type KTX2WorkerClient, type KTX2WorkerOptions } from "./worker.js";
 
 export interface KTX2WorkerPoolOptions extends KTX2WorkerOptions {
@@ -6,7 +6,7 @@ export interface KTX2WorkerPoolOptions extends KTX2WorkerOptions {
 }
 
 export interface KTX2WorkerPoolJob {
-  imageBuffer: Uint8Array | CubeBufferData;
+  imageBuffer: EncodeInput;
   options: Omit<IEncodeOptions, "imageDecoder" | "worker">;
 }
 
@@ -14,7 +14,7 @@ export interface KTX2WorkerPool extends IEncodeWorkerClient {
   readonly size: number;
   readonly workers: readonly Worker[];
   encode(
-    imageBuffer: Uint8Array | CubeBufferData,
+    imageBuffer: EncodeInput,
     options: Omit<IEncodeOptions, "imageDecoder" | "worker">
   ): Promise<Uint8Array>;
   encodeMany(jobs: readonly KTX2WorkerPoolJob[]): Promise<Uint8Array[]>;
@@ -22,7 +22,7 @@ export interface KTX2WorkerPool extends IEncodeWorkerClient {
 }
 
 interface QueueEntry {
-  imageBuffer: Uint8Array | CubeBufferData;
+  imageBuffer: EncodeInput;
   options: Omit<IEncodeOptions, "imageDecoder" | "worker">;
   resolve: (result: Uint8Array) => void;
   reject: (error: Error) => void;
@@ -116,7 +116,7 @@ export function createKTX2WorkerPool(options: KTX2WorkerPoolOptions = {}): KTX2W
   };
 
   const encode = (
-    imageBuffer: Uint8Array | CubeBufferData,
+    imageBuffer: EncodeInput,
     encodeOptions: Omit<IEncodeOptions, "imageDecoder" | "worker">
   ) => {
     if (terminated) {

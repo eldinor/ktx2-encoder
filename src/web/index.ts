@@ -1,5 +1,5 @@
-import { CubeBufferData, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
-import { validateEncodeInput } from "../encoderShared.js";
+import { EncodeInput, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
+import { isRasterImageData, validateEncodeInput } from "../encoderShared.js";
 import { browserEncoder } from "./BrowserBasisEncoder.js";
 import { decodeImageBitmap } from "./decodeImageData.js";
 import { createKTX2Worker } from "./worker.js";
@@ -20,7 +20,7 @@ function getDefaultWorkerClient(): IEncodeWorkerClient {
   return defaultWorkerClient;
 }
 
-export function encodeToKTX2(imageBuffer: Uint8Array | CubeBufferData, options: IEncodeOptions): Promise<Uint8Array> {
+export function encodeToKTX2(imageBuffer: EncodeInput, options: IEncodeOptions): Promise<Uint8Array> {
   validateEncodeInput(imageBuffer, options, "browser");
   if (options.worker) {
     if (options.imageDecoder) {
@@ -32,7 +32,9 @@ export function encodeToKTX2(imageBuffer: Uint8Array | CubeBufferData, options: 
     return workerClient.encode(imageBuffer, workerOptions);
   }
 
-  options.imageDecoder ??= decodeImageBitmap;
+  if (!isRasterImageData(imageBuffer) && !(Array.isArray(imageBuffer) && imageBuffer.length > 0 && isRasterImageData(imageBuffer[0]))) {
+    options.imageDecoder ??= decodeImageBitmap;
+  }
   globalThis.__KTX2_DEBUG__ = options.enableDebug ?? false;
   options.onProgress?.({ state: "started" });
   return browserEncoder.encode(imageBuffer, options).then(

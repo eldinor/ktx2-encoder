@@ -1,4 +1,4 @@
-import type { CubeBufferData, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
+import type { EncodeInput, IEncodeOptions, IEncodeWorkerClient } from "../type.js";
 import {
   getTransferList,
   type WorkerEncodeFailure,
@@ -9,7 +9,7 @@ import {
 
 export interface KTX2WorkerClient extends IEncodeWorkerClient {
   encode(
-    imageBuffer: Uint8Array | CubeBufferData,
+    imageBuffer: EncodeInput,
     options: Omit<IEncodeOptions, "imageDecoder" | "worker">
   ): Promise<Uint8Array>;
   terminate(): void;
@@ -99,7 +99,7 @@ export function createKTX2Worker(options: KTX2WorkerOptions = {}): KTX2WorkerCli
     get worker() {
       return worker;
     },
-    encode(imageBuffer: Uint8Array | CubeBufferData, encodeOptions: Omit<IEncodeOptions, "imageDecoder" | "worker">) {
+    encode(imageBuffer: EncodeInput, encodeOptions: Omit<IEncodeOptions, "imageDecoder" | "worker">) {
       if (encodeOptions.signal?.aborted) {
         encodeOptions.onProgress?.({ state: "canceled" });
         return Promise.reject(new DOMException("The encode operation was aborted.", "AbortError"));

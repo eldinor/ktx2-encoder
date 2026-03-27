@@ -1,5 +1,5 @@
 import { read, write } from "ktx-parse";
-import { CubeBufferData, IEncodeOptions } from "../type.js";
+import { EncodeInput, IEncodeOptions } from "../type.js";
 import { applyInputOptions } from "../applyInputOptions.js";
 import { BasisTextureType, SourceType } from "../enum.js";
 import { loadBrowserBasisModule } from "../basis/loadBasisWeb.js";
@@ -7,6 +7,7 @@ import {
   encodeWithGrowingBuffer,
   getHDRSourceType,
   getInitialEncodeBufferSize,
+  isRasterImageData,
   normalizeError,
   validateEncodeInput
 } from "../encoderShared.js";
@@ -30,7 +31,7 @@ class BrowserBasisEncoder {
    * @returns ktx2 file data
    */
   async encode(
-    bufferOrBufferArray: Uint8Array | CubeBufferData,
+    bufferOrBufferArray: EncodeInput,
     options: Partial<IEncodeOptions> = {}
   ): Promise<Uint8Array> {
     validateEncodeInput(bufferOrBufferArray, options, "browser");
@@ -48,7 +49,9 @@ class BrowserBasisEncoder {
       for (let i = 0; i < bufferArray.length; i++) {
         const buffer = bufferArray[i];
         if (options.isHDR) {
-          encoder.setSliceSourceImageHDR(i, buffer, 0, 0, getHDRSourceType(options), true);
+          encoder.setSliceSourceImageHDR(i, buffer as Uint8Array, 0, 0, getHDRSourceType(options), true);
+        } else if (isRasterImageData(buffer)) {
+          encoder.setSliceSourceImage(i, new Uint8Array(buffer.data), buffer.width, buffer.height, SourceType.RAW);
         } else {
           const imageData = await options.imageDecoder!(buffer);
           encoder.setSliceSourceImage(

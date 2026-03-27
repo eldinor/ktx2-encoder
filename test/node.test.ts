@@ -181,6 +181,29 @@ test("writes kvData into the generated container", { timeout: Infinity }, async 
   expect(container.keyValue.KTXwriter).toBe("babylonpress-ktx2-encoder");
 });
 
+test("supports raw raster input in node without an imageDecoder", async () => {
+  const buffer = await readFile("./public/tests/DuckCM.png");
+  const image = sharp(buffer);
+  const metadata = await image.metadata();
+  const rawBuffer = await image.ensureAlpha().raw().toBuffer();
+
+  const result = await encodeToKTX2(
+    {
+      data: new Uint8Array(rawBuffer),
+      width: metadata.width!,
+      height: metadata.height!
+    },
+    {
+      isUASTC: true,
+      generateMipmap: true
+    }
+  );
+
+  const container = read(result);
+  expect(container.pixelWidth).toBe(metadata.width);
+  expect(container.pixelHeight).toBe(metadata.height);
+});
+
 test("supports WebP input in node with a custom decoder", async () => {
   const pngBuffer = await readFile("./public/tests/DuckCM.png");
   const webpBuffer = await sharp(pngBuffer).webp({ lossless: true }).toBuffer();

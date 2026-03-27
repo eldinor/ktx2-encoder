@@ -1,6 +1,21 @@
 import type { BasisTextureType, HDRSourceType, SourceType } from "./enum.js";
 
+export interface IRasterImageData {
+  data: Uint8Array;
+  width: number;
+  height: number;
+}
+
 export type CubeBufferData = [Uint8Array, Uint8Array, Uint8Array, Uint8Array, Uint8Array, Uint8Array];
+export type CubeRasterImageData = [
+  IRasterImageData,
+  IRasterImageData,
+  IRasterImageData,
+  IRasterImageData,
+  IRasterImageData,
+  IRasterImageData
+];
+export type EncodeInput = Uint8Array | IRasterImageData | CubeBufferData | CubeRasterImageData;
 /**
  * which is defined in [basis_wrappers.cpp](https://github.com/BinomialLLC/basis_universal/blob/df079eca71cf83481c45059dce2165348dc1a5ea/webgl/transcoder/basis_wrappers.cpp#L1830)
  */
@@ -169,7 +184,7 @@ export interface IBasisModule {
 
 export interface IEncodeWorkerClient {
   encode(
-    imageBuffer: Uint8Array | CubeBufferData,
+    imageBuffer: EncodeInput,
     options: Omit<IEncodeOptions, "imageDecoder" | "worker">
   ): Promise<Uint8Array>;
   terminate(): void;
@@ -268,11 +283,11 @@ interface BasisOptions {
   /** type */
   type?: SourceType;
   /**
-   * Decode compressed image buffer to RGBA imageData.(Required in Node.js)
+   * Decode compressed image buffer to RGBA imageData.(Required in Node.js for compressed inputs)
    * @param buffer
    * @returns
    */
-  imageDecoder?: (buffer: Uint8Array) => Promise<{ width: number; height: number; data: Uint8Array }>;
+  imageDecoder?: (buffer: Uint8Array) => Promise<IRasterImageData>;
   /**
    * js url
    */

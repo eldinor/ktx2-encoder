@@ -1,4 +1,9 @@
-import { createKTX2WorkerPool, encodeToKTX2, type IEncodeOptions, type IEncodeWorkerClient } from "./src/web/index.js";
+import {
+  createKTX2WorkerPool,
+  encodeToKTX2,
+  type IEncodeOptions,
+  type IEncodeWorkerClient
+} from "./src/web/index.js";
 
 type ExecutionMode = "direct" | "worker" | "pool";
 

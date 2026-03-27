@@ -1,10 +1,11 @@
-import type { CubeBufferData, IEncodeOptions } from "../type.js";
+import type { CubeBufferData, CubeRasterImageData, EncodeInput, IEncodeOptions } from "../type.js";
+import { isRasterImageData } from "../encoderShared.js";
 
-export type WorkerEncodeInput = Uint8Array | CubeBufferData;
+export type WorkerEncodeInput = EncodeInput;
 
 export interface WorkerEncodeRequest {
   id: number;
-  imageBuffer: Uint8Array | CubeBufferData;
+  imageBuffer: EncodeInput;
   options: Omit<IEncodeOptions, "imageDecoder" | "worker">;
 }
 
@@ -22,14 +23,14 @@ export interface WorkerEncodeFailure {
 
 export type WorkerEncodeResponse = WorkerEncodeSuccess | WorkerEncodeFailure;
 
-export function isCubeBufferData(imageBuffer: WorkerEncodeInput): imageBuffer is CubeBufferData {
+export function isCubeBufferData(imageBuffer: WorkerEncodeInput): imageBuffer is CubeBufferData | CubeRasterImageData {
   return Array.isArray(imageBuffer);
 }
 
 export function getTransferList(imageBuffer: WorkerEncodeInput): Transferable[] {
   if (isCubeBufferData(imageBuffer)) {
-    return imageBuffer.map((face) => face.buffer);
+    return imageBuffer.map((face) => (isRasterImageData(face) ? face.data.buffer : face.buffer));
   }
 
-  return [imageBuffer.buffer];
+  return [isRasterImageData(imageBuffer) ? imageBuffer.data.buffer : imageBuffer.buffer];
 }

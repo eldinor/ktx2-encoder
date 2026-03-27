@@ -99,6 +99,36 @@ test("browser worker pool emits queued and started lifecycle events", async () =
   }
 });
 
+test("browser encodeToKTX2 supports raw raster input", async () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = 3;
+  const context = canvas.getContext("2d");
+  expect(context).toBeTruthy();
+
+  context!.fillStyle = "#2d6cdf";
+  context!.fillRect(0, 0, 4, 3);
+  const imageData = context!.getImageData(0, 0, 4, 3);
+
+  const result = await encodeToKTX2(
+    {
+      data: new Uint8Array(imageData.data),
+      width: 4,
+      height: 3
+    },
+    {
+      isUASTC: true,
+      enableDebug: false,
+      qualityLevel: 230,
+      generateMipmap: true
+    }
+  );
+
+  const container = read(result);
+  expect(container.pixelWidth).toBe(4);
+  expect(container.pixelHeight).toBe(3);
+});
+
 test("browser image decoder handles uploaded non-power-of-two images", async () => {
   const canvas = document.createElement("canvas");
   canvas.width = 3;
