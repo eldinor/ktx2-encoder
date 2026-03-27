@@ -27,63 +27,123 @@ function createWorker(workerUrl: string | URL, options: WorkerOptions): Worker {
 }
 
 export function createKTX2Worker(options: KTX2WorkerOptions = {}): KTX2WorkerClient {
-  const worker = createWorker(options.workerUrl ?? DEFAULT_WORKER_URL, options);
   let nextRequestId = 0;
   const pending = new Map<
     number,
     {
       resolve: (result: Uint8Array) => void;
       reject: (error: Error) => void;
+      cleanupAbort?: () => void;
     }
   >();
+  let worker = createWorker(options.workerUrl ?? DEFAULT_WORKER_URL, options);
 
   const rejectPending = (error: Error) => {
     for (const request of pending.values()) {
+      request.cleanupAbort?.();
       request.reject(error);
     }
     pending.clear();
   };
 
-  worker.addEventListener("message", (event: MessageEvent<WorkerEncodeResponse>) => {
-    if (!event.data || typeof event.data.id !== "number" || typeof event.data.ok !== "boolean") {
-      return;
-    }
+  const attachWorkerListeners = (target: Worker) => {
+    target.addEventListener("message", (event: MessageEvent<WorkerEncodeResponse>) => {
+      if (!event.data || typeof event.data.id !== "number" || typeof event.data.ok !== "boolean") {
+        return;
+      }
 
-    const request = pending.get(event.data.id);
-    if (!request) {
-      return;
-    }
+      const request = pending.get(event.data.id);
+      if (!request) {
+        return;
+      }
 
-    pending.delete(event.data.id);
+      pending.delete(event.data.id);
+      request.cleanupAbort?.();
 
-    if (event.data.ok) {
-      request.resolve((event.data as WorkerEncodeSuccess).result);
-      return;
-    }
+      if (event.data.ok) {
+        request.resolve((event.data as WorkerEncodeSuccess).result);
+        return;
+      }
 
-    request.reject(new Error((event.data as WorkerEncodeFailure).error));
-  });
+      request.reject(new Error((event.data as WorkerEncodeFailure).error));
+    });
 
-  worker.addEventListener("error", (event) => {
-    rejectPending(event.error instanceof Error ? event.error : new Error(event.message));
-  });
+    target.addEventListener("error", (event) => {
+      if (target !== worker) {
+        return;
+      }
 
-  worker.addEventListener("messageerror", () => {
-    rejectPending(new Error("KTX2 worker could not deserialize a message."));
-  });
+      rejectPending(event.error instanceof Error ? event.error : new Error(event.message));
+    });
+
+    target.addEventListener("messageerror", () => {
+      if (target !== worker) {
+        return;
+      }
+
+      rejectPending(new Error("KTX2 worker could not deserialize a message."));
+    });
+  };
+
+  const restartWorker = (error: Error) => {
+    const previousWorker = worker;
+    worker = createWorker(options.workerUrl ?? DEFAULT_WORKER_URL, options);
+    attachWorkerListeners(worker);
+    previousWorker.terminate();
+    rejectPending(error);
+  };
+
+  attachWorkerListeners(worker);
 
   return {
-    worker,
+    get worker() {
+      return worker;
+    },
     encode(imageBuffer: Uint8Array | CubeBufferData, encodeOptions: Omit<IEncodeOptions, "imageDecoder" | "worker">) {
+      if (encodeOptions.signal?.aborted) {
+        encodeOptions.onProgress?.({ state: "canceled" });
+        return Promise.reject(new DOMException("The encode operation was aborted.", "AbortError"));
+      }
+
       const requestId = nextRequestId++;
+      const { signal, onProgress, ...requestOptions } = encodeOptions;
       const payload: WorkerEncodeRequest = {
         id: requestId,
         imageBuffer,
-        options: { ...encodeOptions }
+        options: { ...requestOptions }
       };
 
       return new Promise<Uint8Array>((resolve, reject) => {
-        pending.set(requestId, { resolve, reject });
+        const abort = () => {
+          if (!pending.has(requestId)) {
+            return;
+          }
+
+          onProgress?.({ state: "canceled" });
+          restartWorker(new DOMException("The encode operation was aborted.", "AbortError"));
+        };
+
+        const cleanupAbort = signal
+          ? () => signal.removeEventListener("abort", abort)
+          : undefined;
+
+        pending.set(requestId, {
+          resolve: (result) => {
+            onProgress?.({ state: "finished" });
+            resolve(result);
+          },
+          reject: (error) => {
+            if (error.name !== "AbortError") {
+              onProgress?.({ state: "failed" });
+            }
+            reject(error);
+          },
+          cleanupAbort
+        });
+        if (signal) {
+          signal.addEventListener("abort", abort, { once: true });
+        }
+        onProgress?.({ state: "started" });
         worker.postMessage(payload, getTransferList(imageBuffer));
       });
     },

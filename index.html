@@ -3,12 +3,422 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ktx2-encoder dev</title>
+    <title>KTX2 Encoder Demo</title>
+    <style>
+      :root {
+        --bg: #ffffff;
+        --panel: #ffffff;
+        --ink: #102942;
+        --muted: #5f7183;
+        --line: #d9e2ec;
+        --blue: #163d6b;
+        --blue-strong: #102f53;
+        --blue-soft: #eef4fb;
+        --success: #21724a;
+        --error: #b24432;
+        --shadow: 0 10px 28px rgba(16, 41, 66, 0.08);
+        --radius: 10px;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--ink);
+        font: 14px/1.4 "Segoe UI", "Helvetica Neue", sans-serif;
+      }
+
+      .page {
+        width: min(1120px, calc(100% - 32px));
+        margin: 0 auto;
+        padding: 24px 0 28px;
+        display: grid;
+        gap: 16px;
+      }
+
+      .hero {
+        display: grid;
+        gap: 6px;
+      }
+
+      .eyebrow {
+        margin: 0;
+        color: var(--blue);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        font-weight: 500;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(24px, 4vw, 34px);
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        font-weight: 500;
+      }
+
+      .intro {
+        margin: 0;
+        max-width: 780px;
+        color: var(--muted);
+      }
+
+      .layout {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: minmax(320px, 420px) minmax(360px, 1fr);
+        align-items: start;
+      }
+
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+      }
+
+      .controls,
+      .results {
+        padding: 16px;
+        display: grid;
+        gap: 14px;
+      }
+
+      .section {
+        display: grid;
+        gap: 10px;
+      }
+
+      .section-title {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--blue);
+      }
+
+      .grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      label {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .full {
+        grid-column: 1 / -1;
+      }
+
+      input,
+      select,
+      button,
+      a.download {
+        font: inherit;
+      }
+
+      input[type="file"],
+      input[type="number"],
+      select {
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .choice-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .choice-row label {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .choice-row input {
+        margin: 0;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      button,
+      a.download {
+        min-height: 38px;
+        padding: 9px 14px;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        background: var(--blue);
+        color: #fff;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      button:hover:not(:disabled),
+      a.download:hover {
+        background: var(--blue-strong);
+      }
+
+      button.secondary {
+        background: #fff;
+        color: var(--blue);
+        border-color: var(--line);
+      }
+
+      button.secondary:hover:not(:disabled) {
+        background: var(--blue-soft);
+      }
+
+      button:disabled,
+      a.download.disabled {
+        opacity: 0.5;
+        cursor: default;
+        pointer-events: none;
+      }
+
+      .hint {
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .summary-grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--blue-soft);
+        padding: 10px;
+        display: grid;
+        gap: 4px;
+      }
+
+      .metric-label {
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .metric-value {
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .status {
+        margin: 0;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #f8fbff;
+        color: var(--ink);
+      }
+
+      .status.success {
+        color: var(--success);
+      }
+
+      .status.error {
+        color: var(--error);
+      }
+
+      .log {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: grid;
+        gap: 8px;
+        max-height: 220px;
+        overflow: auto;
+      }
+
+      .log li {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 8px 10px;
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--ink);
+        background: #fff;
+      }
+
+      .log small {
+        color: var(--muted);
+      }
+
+      .footer-note {
+        margin: 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .hidden {
+        display: none !important;
+      }
+
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .page {
+          width: min(100% - 20px, 1120px);
+          padding-top: 16px;
+        }
+
+        .grid,
+        .summary-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
   </head>
   <body>
-    <main>
-      <h1>ktx2-encoder</h1>
-      <p>Package development server for browser-side testing.</p>
+    <main class="page">
+      <section class="hero">
+        <p class="eyebrow">Browser Demo</p>
+        <h1>KTX2 encoder playground</h1>
+        <p class="intro">
+          Upload an image or use the sample texture, pick a mode, encode it to KTX2, and download the result. Direct,
+          worker, and pool paths all use the same package API. Demo uploads currently support PNG and JPEG.
+        </p>
+      </section>
+
+      <section class="layout">
+        <form class="panel controls" id="demo-form">
+          <div class="section">
+            <h2 class="section-title">Source</h2>
+            <div class="grid">
+              <label class="full">
+                Image file
+                <input id="source-file" type="file" accept="image/png,image/jpeg" />
+              </label>
+            </div>
+            <div class="actions">
+              <button class="secondary" id="use-sample" type="button">Use sample image</button>
+            </div>
+            <p class="hint" id="source-label">No file selected. WebP is not supported in this demo yet.</p>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Settings</h2>
+            <div class="grid">
+              <label>
+                Compression
+                <select id="compression-mode">
+                  <option value="uastc">UASTC</option>
+                  <option value="etc1s">ETC1S</option>
+                </select>
+              </label>
+
+              <label>
+                Quality level
+                <input id="quality-level" type="number" min="1" max="255" value="230" />
+              </label>
+
+              <label class="full">
+                <span>Execution mode</span>
+                <div class="choice-row">
+                  <label><input type="radio" name="execution-mode" value="direct" checked /> Direct</label>
+                  <label><input type="radio" name="execution-mode" value="worker" /> Worker</label>
+                  <label><input type="radio" name="execution-mode" value="pool" /> Pool</label>
+                </div>
+              </label>
+
+              <label id="pool-size-field" class="hidden">
+                Pool size
+                <input id="pool-size" type="number" min="1" max="8" value="2" />
+              </label>
+
+              <label class="full">
+                <span>Extra</span>
+                <div class="choice-row">
+                  <label><input id="generate-mipmap" type="checkbox" checked /> Generate mipmaps</label>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div class="actions">
+            <button id="encode-button" type="submit">Encode</button>
+            <button class="secondary" id="cancel-button" type="button" disabled>Cancel</button>
+            <a class="download disabled" id="download-link" download="texture.ktx2">Download .ktx2</a>
+          </div>
+
+          <p class="footer-note">
+            Worker and pool modes support cancellation. Pool mode is best for repeated batch-style encoding. WebP is
+            not supported in this demo yet.
+          </p>
+        </form>
+
+        <section class="panel results">
+          <div class="section">
+            <h2 class="section-title">Result</h2>
+            <div class="summary-grid">
+              <div class="metric">
+                <span class="metric-label">Source size</span>
+                <strong class="metric-value" id="source-size">-</strong>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Output size</span>
+                <strong class="metric-value" id="output-size">-</strong>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Elapsed time</span>
+                <strong class="metric-value" id="elapsed-time">-</strong>
+              </div>
+              <div class="metric">
+                <span class="metric-label">Execution mode</span>
+                <strong class="metric-value" id="mode-label">-</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Status</h2>
+            <p class="status" id="status-message">Ready.</p>
+          </div>
+
+          <div class="section">
+            <h2 class="section-title">Event log</h2>
+            <ul class="log" id="event-log"></ul>
+          </div>
+        </section>
+      </section>
     </main>
+
+    <script type="module" src="/demo.ts"></script>
   </body>
-</html>
+  </html>
