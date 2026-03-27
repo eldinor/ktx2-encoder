@@ -124,10 +124,12 @@ export function createKTX2WorkerPool(options: KTX2WorkerPoolOptions = {}): KTX2W
     }
 
     if (encodeOptions.signal?.aborted) {
+      encodeOptions.onProgress?.({ state: "canceled" });
       return Promise.reject(createAbortError());
     }
 
     return new Promise<Uint8Array>((resolve, reject) => {
+      const { onProgress } = encodeOptions;
       const queueEntry: QueueEntry = {
         imageBuffer,
         options: encodeOptions,
@@ -142,6 +144,7 @@ export function createKTX2WorkerPool(options: KTX2WorkerPoolOptions = {}): KTX2W
           if (queuedIndex >= 0) {
             queue.splice(queuedIndex, 1);
             queueEntry.cleanupAbort?.();
+            onProgress?.({ state: "canceled" });
             reject(createAbortError());
             return;
           }
@@ -159,6 +162,7 @@ export function createKTX2WorkerPool(options: KTX2WorkerPoolOptions = {}): KTX2W
         signal.addEventListener("abort", abort, { once: true });
       }
 
+      onProgress?.({ state: "queued" });
       queue.push(queueEntry);
       runNext();
     });

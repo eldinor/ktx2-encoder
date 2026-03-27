@@ -34,5 +34,15 @@ export function encodeToKTX2(imageBuffer: Uint8Array | CubeBufferData, options: 
 
   options.imageDecoder ??= decodeImageBitmap;
   globalThis.__KTX2_DEBUG__ = options.enableDebug ?? false;
-  return browserEncoder.encode(imageBuffer, options);
+  options.onProgress?.({ state: "started" });
+  return browserEncoder.encode(imageBuffer, options).then(
+    (result) => {
+      options.onProgress?.({ state: "finished" });
+      return result;
+    },
+    (error) => {
+      options.onProgress?.({ state: options.signal?.aborted ? "canceled" : "failed" });
+      throw error;
+    }
+  );
 }

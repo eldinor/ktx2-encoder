@@ -175,6 +175,12 @@ export interface IEncodeWorkerClient {
   terminate(): void;
 }
 
+export type EncodeProgressState = "queued" | "started" | "finished" | "failed" | "canceled";
+
+export interface EncodeProgressEvent {
+  state: EncodeProgressState;
+}
+
 interface HDROptions extends BasisOptions {
   /**
    * Enable HDR mode. Only supported for UASTC encoding.
@@ -286,6 +292,11 @@ interface BasisOptions {
    * Abort an encode request. Worker-backed cancellation restarts the active worker.
    */
   signal?: AbortSignal;
+
+  /**
+   * Lightweight lifecycle callback for encode requests.
+   */
+  onProgress?: (event: EncodeProgressEvent) => void;
 }
 
 declare global {

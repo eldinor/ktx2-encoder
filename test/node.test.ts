@@ -181,6 +181,23 @@ test("writes kvData into the generated container", { timeout: Infinity }, async 
   expect(container.keyValue.KTXwriter).toBe("babylonpress-ktx2-encoder");
 });
 
+test("emits progress lifecycle events in node direct mode", async () => {
+  const buffer = await readFile("./public/tests/DuckCM.png");
+  const events: string[] = [];
+
+  await encodeToKTX2(new Uint8Array(buffer), {
+    isUASTC: false,
+    qualityLevel: 230,
+    generateMipmap: true,
+    imageDecoder,
+    onProgress(event) {
+      events.push(event.state);
+    }
+  });
+
+  expect(events).toEqual(["started", "finished"]);
+});
+
 test("etc1s", { timeout: Infinity }, async () => {
   const buffer = await readFile("./public/tests/DuckCM.png");
   const result = await encodeToKTX2(new Uint8Array(buffer), {

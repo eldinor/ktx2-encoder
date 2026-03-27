@@ -101,11 +101,12 @@ export function createKTX2Worker(options: KTX2WorkerOptions = {}): KTX2WorkerCli
     },
     encode(imageBuffer: Uint8Array | CubeBufferData, encodeOptions: Omit<IEncodeOptions, "imageDecoder" | "worker">) {
       if (encodeOptions.signal?.aborted) {
+        encodeOptions.onProgress?.({ state: "canceled" });
         return Promise.reject(new DOMException("The encode operation was aborted.", "AbortError"));
       }
 
       const requestId = nextRequestId++;
-      const { signal, ...requestOptions } = encodeOptions;
+      const { signal, onProgress, ...requestOptions } = encodeOptions;
       const payload: WorkerEncodeRequest = {
         id: requestId,
         imageBuffer,
@@ -118,6 +119,7 @@ export function createKTX2Worker(options: KTX2WorkerOptions = {}): KTX2WorkerCli
             return;
           }
 
+          onProgress?.({ state: "canceled" });
           restartWorker(new DOMException("The encode operation was aborted.", "AbortError"));
         };
 
@@ -125,10 +127,23 @@ export function createKTX2Worker(options: KTX2WorkerOptions = {}): KTX2WorkerCli
           ? () => signal.removeEventListener("abort", abort)
           : undefined;
 
-        pending.set(requestId, { resolve, reject, cleanupAbort });
+        pending.set(requestId, {
+          resolve: (result) => {
+            onProgress?.({ state: "finished" });
+            resolve(result);
+          },
+          reject: (error) => {
+            if (error.name !== "AbortError") {
+              onProgress?.({ state: "failed" });
+            }
+            reject(error);
+          },
+          cleanupAbort
+        });
         if (signal) {
           signal.addEventListener("abort", abort, { once: true });
         }
+        onProgress?.({ state: "started" });
         worker.postMessage(payload, getTransferList(imageBuffer));
       });
     },
