@@ -63,4 +63,91 @@ describe("ktx2 transform node", () => {
     expect(texture1.getMimeType()).toBe("image/ktx2");
     expect(texture2.getMimeType()).toBe("image/png");
   });
+
+  test("filters textures by material slots", async () => {
+    const document = new Document();
+    const imageBuffer = await readFile("./public/tests/DuckCM.png");
+
+    const baseColorTexture = document.createTexture("baseColor")
+      .setImage(imageBuffer)
+      .setMimeType("image/png")
+      .setURI("baseColor.png");
+
+    const normalTexture = document.createTexture("normal")
+      .setImage(imageBuffer)
+      .setMimeType("image/png")
+      .setURI("normal.png");
+
+    document.createMaterial("material")
+      .setBaseColorTexture(baseColorTexture)
+      .setNormalTexture(normalTexture);
+
+    await document.transform(
+      ktx2({
+        slots: /^baseColorTexture$/,
+        isUASTC: true,
+        imageDecoder
+      })
+    );
+
+    expect(baseColorTexture.getMimeType()).toBe("image/ktx2");
+    expect(normalTexture.getMimeType()).toBe("image/png");
+  });
+
+  test("creates KHR_texture_basisu when at least one texture is converted", async () => {
+    const document = new Document();
+    document.createTexture("test")
+      .setImage(await readFile("./public/tests/DuckCM.png"))
+      .setMimeType("image/png");
+
+    await document.transform(
+      ktx2({
+        isUASTC: true,
+        imageDecoder
+      })
+    );
+
+    const extension = document.getRoot().listExtensionsUsed().find((ext) => ext.extensionName === "KHR_texture_basisu");
+    expect(extension?.extensionName).toBe("KHR_texture_basisu");
+    expect(document.getRoot().listExtensionsRequired().some((ext) => ext.extensionName === "KHR_texture_basisu")).toBe(
+      true
+    );
+  });
+
+  test("skips unsupported and already-ktx2 textures without creating the extension", async () => {
+    const document = new Document();
+    const pngBuffer = await readFile("./public/tests/DuckCM.png");
+
+    document.createTexture("alreadyCompressed")
+      .setImage(pngBuffer)
+      .setMimeType("image/ktx2");
+
+    document.createTexture("gifLike")
+      .setImage(pngBuffer)
+      .setMimeType("image/gif");
+
+    await document.transform(
+      ktx2({
+        isUASTC: true,
+        imageDecoder
+      })
+    );
+
+    expect(document.getRoot().listExtensionsUsed().some((ext) => ext.extensionName === "KHR_texture_basisu")).toBe(false);
+  });
+
+  test("skips textures without image data", async () => {
+    const document = new Document();
+    const texture = document.createTexture("empty").setMimeType("image/png");
+
+    await document.transform(
+      ktx2({
+        isUASTC: true,
+        imageDecoder
+      })
+    );
+
+    expect(texture.getMimeType()).toBe("image/png");
+    expect(texture.getImage()).toBeNull();
+  });
 }); 

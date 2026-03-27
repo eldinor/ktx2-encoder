@@ -1,9 +1,8 @@
 {
-  "version": "0.5.1",
-  "name": "ktx2-encoder",
-  "description": "KTX2(.ktx2) encoder for browser applications",
+  "version": "0.6.0",
+  "name": "babylonpress-ktx2-encoder",
+  "description": "KTX2(.ktx2) encoder for browser and Node applications",
   "type": "module",
-  "packageManager": "pnpm@8.15.9",
   "exports": {
     ".": {
       "node": {
@@ -20,24 +19,39 @@
       "types": "./types/gltf-transform/index.d.ts"
     }
   },
-  "repository": "github:gz65555/ktx2-encoder",
-  "author": {
-    "name": "Hu Song",
-    "email": "gz65555@gmail.com"
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/eldinor/ktx2-encoder.git"
   },
+  "homepage": "https://github.com/eldinor/ktx2-encoder#readme",
+  "bugs": {
+    "url": "https://github.com/eldinor/ktx2-encoder/issues"
+  },
+  "author": {
+    "name": "eldinor",
+    "email": "eldinor@gmail.com"
+  },
+  "contributors": [
+    {
+      "name": "Hu Song",
+      "email": "gz65555@gmail.com",
+      "url": "https://github.com/gz65555/ktx2-encoder"
+    }
+  ],
   "license": "MIT",
   "scripts": {
-    "docs": "typedoc ./src/web/index.ts --plugin typedoc-plugin-markdown --out ./docs",
+    "dev": "vite",
+    "benchmark": "vite --open /benchmark/",
+    "benchmark:compare": "vite --open /benchmark/compare.html",
     "watch": "tsc -p tsconfig.json --watch",
-    "build": "tsc -p tsconfig.json && cp -R src/basis dist",
-    "test": "npm run test:node && npm run test:web",
-    "test:node": "vitest run ./test/node.test.ts",
-    "test:web": "vitest run --browser.name=chrome ./test/web.test.ts",
-    "test:gltf": "vitest run ./test/gltf-transform.node.test.ts && vitest run --browser.name=chrome ./test/gltf-transform.web.test.ts",
-    "release": "bumpp",
-    "docs:dev": "vitepress dev website",
-    "docs:build": "cp -r src/basis website/public && vitepress build website",
-    "docs:preview": "vitepress preview website"
+    "build": "tsc -p tsconfig.json && node ./scripts/copy-basis.mjs",
+    "test": "npm run test:node",
+    "test:node": "vitest run ./test/encoderShared.test.ts ./test/node.test.ts ./test/repeat.node.test.ts ./test/gltf-transform.node.test.ts",
+    "test:web": "vitest run --reporter=dot --browser.enabled --browser.name=chrome ./test/web.smoke.test.ts",
+    "test:coverage": "vitest run --coverage ./test/encoderShared.test.ts ./test/node.test.ts ./test/repeat.node.test.ts ./test/gltf-transform.node.test.ts",
+    "test:gltf": "vitest run ./test/gltf-transform.node.test.ts",
+    "test:gltf:web": "vitest run --reporter=dot --browser.enabled --browser.name=chrome ./test/gltf-transform.web.smoke.test.ts",
+    "release": "npm version patch"
   },
   "keywords": [
     "ktx",
@@ -53,32 +67,21 @@
     "dist"
   ],
   "devDependencies": {
-    "@css-render/vue3-ssr": "^0.15.14",
-    "@galacean/engine": "^1.4.5",
     "@gltf-transform/core": "^4.1.1",
     "@gltf-transform/extensions": "^4.1.1",
-    "@types/node": "^20.17.16",
-    "@types/react": "^18.3.18",
-    "@types/react-dom": "^18.3.5",
-    "@types/three": "^0.172.0",
-    "@vitejs/plugin-react": "^4.3.4",
-    "@vitest/browser": "^2.1.8",
-    "@webgpu/types": "^0.1.53",
-    "bumpp": "^9.11.1",
-    "naive-ui": "^2.41.0",
-    "prettier": "^2.8.8",
-    "sharp": "^0.33.5",
-    "three": "^0.172.0",
-    "typedoc": "^0.27.6",
-    "typedoc-plugin-markdown": "^4.4.1",
-    "typescript": "~5.6.3",
-    "vite": "^5.4.14",
-    "vitepress": "^1.6.3",
-    "vitest": "^2.1.8",
-    "vue": "^3.5.13",
+    "@types/node": "^25.5.0",
+    "@vitest/browser": "^4.0.8",
+    "@vitest/browser-webdriverio": "^4.0.8",
+    "@vitest/coverage-v8": "^4.0.8",
+    "ktx2-encoder": "^0.5.1",
+    "prettier": "^3.8.1",
+    "sharp": "^0.34.5",
+    "typescript": "^6.0.2",
+    "vite": "^8.0.3",
+    "vitest": "^4.0.8",
     "webdriverio": "^9.7.1"
   },
   "dependencies": {
-    "ktx-parse": "^0.7.1"
+    "ktx-parse": "^1.1.0"
   }
 }

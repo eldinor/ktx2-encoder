@@ -167,6 +167,11 @@ export interface IBasisModule {
   initializeBasis: () => void;
 }
 
+export interface IEncodeWorkerClient {
+  encode(imageBuffer: Uint8Array | CubeBufferData, options: Omit<IEncodeOptions, "imageDecoder" | "worker">): Promise<Uint8Array>;
+  terminate(): void;
+}
+
 interface HDROptions extends BasisOptions {
   /**
    * Enable HDR mode. Only supported for UASTC encoding.
@@ -267,6 +272,12 @@ interface BasisOptions {
    * wasm url
    */
   wasmUrl?: string;
+
+  /**
+   * Encode using a browser worker. `true` uses the default package worker, or pass a custom worker client.
+   * Browser-only.
+   */
+  worker?: boolean | IEncodeWorkerClient;
 }
 
 declare global {
