@@ -168,7 +168,10 @@ export interface IBasisModule {
 }
 
 export interface IEncodeWorkerClient {
-  encode(imageBuffer: Uint8Array | CubeBufferData, options: Omit<IEncodeOptions, "imageDecoder" | "worker">): Promise<Uint8Array>;
+  encode(
+    imageBuffer: Uint8Array | CubeBufferData,
+    options: Omit<IEncodeOptions, "imageDecoder" | "worker">
+  ): Promise<Uint8Array>;
   terminate(): void;
 }
 
@@ -278,6 +281,11 @@ interface BasisOptions {
    * Browser-only.
    */
   worker?: boolean | IEncodeWorkerClient;
+
+  /**
+   * Abort an encode request. Worker-backed cancellation restarts the active worker.
+   */
+  signal?: AbortSignal;
 }
 
 declare global {
